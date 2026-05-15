@@ -62,11 +62,16 @@ Todas as 4 stories usam `admin@fifa2026.com / admin123` no smoke. O seed de 05-0
 
 ---
 
-## Defeitos não-bloqueantes (corrigir quando conveniente)
+## Defeitos não-bloqueantes
 
-### D4 — Inconsistência de naming de Resource Group (BAIXO)
+### D4 — ~~Inconsistência de naming de Resource Group~~ → RETIRADO (não é defeito)
 
-`1.4.story.md` usa `fifa2026-paas-rg` mas o recurso real deployado (EPIC-000) está em `fifa2026-rg`. No workshop o aluno cria o seu próprio RG, então é ilustrativo — mas convém padronizar o nome entre as 4 stories e o `infra/`. Não bloqueia dry-run.
+**Reavaliado 2026-05-15:** falso positivo. O esquema de RG nas 4 stories é **intencional e internamente consistente**:
+
+- `fifa2026-vm-rg` — as 3 VMs (criado em 1.1; `az group delete` em bloco na 1.4 → cleanup limpo)
+- `fifa2026-paas-rg` — recursos PaaS (web apps + Azure SQL, criados em 1.2/1.3/1.4)
+
+A comparação original era inválida: `fifa2026-rg` é o RG da prod **real** (EPIC-000); o workshop é o aluno construindo o **próprio** ambiente do zero — ele nunca toca o `fifa2026-rg`. Forçar `fifa2026-rg` nas stories seria **errado** (conflataria o sandbox do aluno com a prod real e quebraria a didática VM-RG vs PaaS-RG). Nenhuma ação — esquema mantido como está.
 
 ---
 
