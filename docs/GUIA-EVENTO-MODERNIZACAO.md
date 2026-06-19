@@ -739,6 +739,8 @@ Tudo na VNet que você já tem (`vnet-prd-inf-cin-001`, `10.20.0.0/16`):
 
 > 🧠 **Regra de ouro da ordem:** **abrir o caminho privado → validar → só então desligar o público.** Nunca tranque uma porta sem ter aberto a outra — é o que garante zero downtime.
 
+> ⚠️ **A validação é de DENTRO da VNet.** Do seu PC (fora da VNet), o FQDN privado **resolve o IP público** → 403/timeout. Por isso valide sempre **de dentro**: pelo **próprio app** (`/api/health`, `/api/health/db` — o app resolve o nome privado de dentro) ou de uma **VM/Bastion na VNet**. Testar o DNS privado do seu micro **não funciona** e não significa que está errado.
+
 #### 8.3 Preparar a rede (subnets)
 
 Portal → `vnet-prd-inf-cin-001` → **Subnets** → **+ Subnet**:
@@ -746,14 +748,14 @@ Portal → `vnet-prd-inf-cin-001` → **Subnets** → **+ Subnet**:
 2. **`snet-prd-inf-appf-cin-001`** · `10.20.4.0/24` · **Delegation: Microsoft.Web/serverFarms**.
 3. A **API** reusa a `snet-prd-inf-appsvc-cin-001` (`10.20.3.0/24`) criada na Fase 3.4 (se removeu, recrie delegada).
 
-> 💡 Uma subnet de integração é **dedicada a um plano**. Como front e API ficarão em **planos diferentes** (8.4), cada um precisa da **sua** subnet. Os Private Endpoints **compartilham** uma subnet.
+> 💡 Uma subnet de integração é **dedicada a um plano** (e **não pode ser a mesma** dos Private Endpoints). Como front e API ficarão em **planos diferentes** (8.4), cada um precisa da **sua** subnet; os Private Endpoints **compartilham** a subnet de PE. Subnets de integração exigem no mínimo **/28** (recomendado /26 para escala) — nossas `/24` têm folga de sobra.
 
 #### 8.4 Separar a API em seu próprio App Service Plan
 
 1. Portal → **App Service plans** → **+ Create** → `asp-prd-tk-bend-cin-001` · Windows · Central India · **B1**.
 2. `app-prd-tk-bend-cin-001` → **Settings → App Service plan → Change App Service plan** → selecione `asp-prd-tk-bend-cin-001` (reinicia, sem perder config).
 
-> ⚠️ **Obrigatório:** um app **não alcança bem o Private Endpoint de outro app no mesmo plano** ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/app-service/overview-vnet-integration)). Como o front vai chamar a API via PE, a API **precisa** de plano separado (bônus: escalam independente).
+> ⚠️ **Obrigatório:** um app **não alcança bem o Private Endpoint de outro app no mesmo plano** ([Microsoft Learn](https://learn.microsoft.com/en-us/azure/app-service/overview-vnet-integration)). Como o front vai chamar a API via PE, a API **precisa** de plano separado (bônus: escalam independente). _(O tier **B1/Basic** já suporta Private Endpoint — não precisa subir de tier.)_
 
 #### 8.5 Private Endpoint do Azure SQL (público ainda ligado)
 
@@ -774,8 +776,8 @@ Portal → `vnet-prd-inf-cin-001` → **Subnets** → **+ Subnet**:
 
 #### 8.7 Private Endpoint da API (público ainda ligado)
 
-1. `app-prd-tk-bend-cin-001` → **Networking → Inbound → Private endpoints → + Add** → `pe-prd-tk-bend-cin-001` · VNet `vnet-prd-inf-cin-001` · Subnet `snet-prd-inf-pe-cin-001`.
-2. **Private DNS integration: Yes** → zona `privatelink.azurewebsites.net`.
+1. `app-prd-tk-bend-cin-001` → **Networking → Inbound → Private endpoints → + Add** → `pe-prd-tk-bend-cin-001` · sub-resource **sites** · VNet `vnet-prd-inf-cin-001` · Subnet `snet-prd-inf-pe-cin-001`.
+2. **Private DNS integration: Yes** → zona `privatelink.azurewebsites.net`. O **Private DNS Zone Group** cria **automaticamente** os registros `A` do **app** *e* do **`scm`** (Kudu) apontando para o IP privado — por isso o **deploy/Kudu também fica privado** (ver 8.9). Continue usando o nome `*.azurewebsites.net` (o certificado é desse nome).
 
 > ⏸️ **Não desligue o público da API ainda** — o front só a alcança privado depois do 8.8.
 
